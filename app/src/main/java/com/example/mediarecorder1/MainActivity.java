@@ -11,6 +11,7 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.media.CamcorderProfile;
+import android.media.MediaCodec;
 import android.os.Bundle;
 import android.media.MediaRecorder;
 import android.os.Environment;
@@ -23,6 +24,8 @@ import android.view.View;
 import android.widget.Button;
 import java.io.File;
 import java.util.Arrays;
+
+import static android.media.MediaCodec.createPersistentInputSurface;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -44,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
     private Handler mBackgroundHandler = null;
 
     private File mCurrentFile;
+
+    private boolean mResume=false;
 
     private MediaRecorder mMediaRecorder = null;
 
@@ -103,7 +108,10 @@ public class MainActivity extends AppCompatActivity {
 
                 if ((myCameras[CAMERA1] != null) & mMediaRecorder != null) {
 
+
+
                     mMediaRecorder.start();
+                    Log.i(LOG_TAG, "START");
 
                 }
             }
@@ -116,6 +124,7 @@ public class MainActivity extends AppCompatActivity {
 
                 if ((myCameras[CAMERA1] != null) & (mMediaRecorder != null)) {
                     myCameras[CAMERA1].stopRecordingVideo();
+                    Log.i(LOG_TAG, "STOP");
                 }
 
 
@@ -160,6 +169,7 @@ public class MainActivity extends AppCompatActivity {
         mCurrentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "test"+count+".mp4");
         mMediaRecorder.setOutputFile(mCurrentFile.getAbsolutePath());
         CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
+        mMediaRecorder.setVideoSize(640, 480);
         mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
         mMediaRecorder.setVideoSize(profile.videoFrameWidth, profile.videoFrameHeight);
         mMediaRecorder.setVideoEncodingBitRate(profile.videoBitRate);
@@ -168,9 +178,42 @@ public class MainActivity extends AppCompatActivity {
         mMediaRecorder.setAudioEncodingBitRate(profile.audioBitRate);
         mMediaRecorder.setAudioSamplingRate(profile.audioSampleRate);
 
+
+
+     //   try {
+    //        mMediaRecorder.prepare();
+     //       Log.i(LOG_TAG, " запустили медиа рекордер");
+
+    //    } catch (Exception e) {
+    //        Log.i(LOG_TAG, "не запустили медиа рекордер");
+     //   }
+
+
+    }
+
+    private void setUpMediaRecorder2() {
+
+        mMediaRecorder = new MediaRecorder();
+
+        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mCurrentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "test"+count+".mp4");
+        mMediaRecorder.setOutputFile(mCurrentFile.getAbsolutePath());
+        mMediaRecorder.setVideoSize(640, 480);
+        CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
+        mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
+        mMediaRecorder.setVideoSize(profile.videoFrameWidth, profile.videoFrameHeight);
+        mMediaRecorder.setVideoEncodingBitRate(profile.videoBitRate);
+        mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mMediaRecorder.setAudioEncodingBitRate(profile.audioBitRate);
+        mMediaRecorder.setAudioSamplingRate(profile.audioSampleRate);
+
+
         try {
             mMediaRecorder.prepare();
-            Log.i(LOG_TAG, " запустили медиа рекордер");
+            Log.i(LOG_TAG, " запустили медиа рекордер2");
 
         } catch (Exception e) {
             Log.i(LOG_TAG, "не запустили медиа рекордер");
@@ -178,6 +221,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     }
+
 
     public class CameraService {
 
@@ -229,7 +273,7 @@ public class MainActivity extends AppCompatActivity {
 
             try {
 
-                mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+                mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
 
                 /**Surface for the camera preview set up*/
 
@@ -237,11 +281,26 @@ public class MainActivity extends AppCompatActivity {
 
                 /**MediaRecorder setup for surface*/
 
-                Surface recorderSurface = mMediaRecorder.getSurface();
 
+
+
+              //  Surface recorderSurface = mMediaRecorder.getSurface();
+
+                Surface recorderSurface=MediaCodec.createPersistentInputSurface();
+                mMediaRecorder.setInputSurface(recorderSurface);
+
+
+
+                try {
+                    mMediaRecorder.prepare();
+                    Log.i(LOG_TAG, " запустили медиа рекордер");
+
+                } catch (Exception e) {
+                    Log.i(LOG_TAG, "не запустили медиа рекордер");
+                }
                 mPreviewBuilder.addTarget(recorderSurface);
 
-                mCameraDevice.createCaptureSession(Arrays.asList(surface, mMediaRecorder.getSurface()),
+                mCameraDevice.createCaptureSession(Arrays.asList(surface,recorderSurface),
                         new CameraCaptureSession.StateCallback() {
 
                             @Override
@@ -266,21 +325,26 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
+
         public void stopRecordingVideo() {
 
-            try {
-                mSession.stopRepeating();
-                mSession.abortCaptures();
-                mSession.close();
+      /*     try {
+               mSession.stopRepeating();
+               mSession.abortCaptures();
+               mSession.close();
             } catch (CameraAccessException e) {
                 e.printStackTrace();
             }
+*/
+      mMediaRecorder.reset();
+          //
+        //   mMediaRecorder.stop();
 
-            mMediaRecorder.stop();
-            mMediaRecorder.release();
+       //   mMediaRecorder.release();
             count++;
-            setUpMediaRecorder();
-            startCameraPreviewSession();
+
+            setUpMediaRecorder2();
+         // startCameraPreviewSession();
         }
 
 
